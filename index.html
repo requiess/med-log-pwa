@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#eef1ef">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Med Log</title>
+<style>
+:root{
+  --paper:#eef1ef;
+  --card:#ffffff;
+  --ink:#16231f;
+  --ink-soft:#5d6b66;
+  --line:#d3dad6;
+  --pine:#1f5f4b;
+  --pine-soft:#dfeae5;
+  --amber:#b3651b;
+  --amber-soft:#f6e6d5;
+  --radius:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;
+  line-height:1.45;
+  padding-bottom:calc(84px + env(safe-area-inset-bottom));
+  -webkit-text-size-adjust:100%;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{margin:0;font-weight:640;letter-spacing:-0.015em}
+
+.wrap{max-width:560px;margin:0 auto;padding:0 14px}
+.pane{display:none}
+.pane.on{display:block}
+
+/* ---------- dose clock ---------- */
+.clock{
+  padding:22px 18px 18px;
+  margin:12px 0 16px;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+}
+.clock-label{color:var(--ink-soft);font-size:13.5px;margin-bottom:2px}
+.clock-time{
+  font-size:52px;line-height:1;font-weight:700;
+  font-variant-numeric:tabular-nums;letter-spacing:-0.04em;
+  color:var(--pine);
+}
+.clock-time.stale{color:var(--ink-soft)}
+.clock-sub{color:var(--ink-soft);font-size:14px;margin-top:6px}
+.clock-actions{display:flex;gap:8px;margin-top:14px}
+
+.btn{
+  border:1px solid var(--pine);border-radius:10px;
+  padding:11px 14px;font-weight:600;font-size:15px;
+  background:var(--pine);color:#fff;flex:1;text-align:center;
+}
+.btn.ghost{background:transparent;color:var(--pine)}
+.btn.wide{width:100%}
+.btn:active{transform:scale(.985)}
+.btn.quiet{border-color:var(--line);color:var(--ink-soft);background:transparent;font-weight:500}
+.btn.danger{border-color:#a33a2a;color:#a33a2a;background:transparent}
+
+/* ---------- day strip ---------- */
+.strip{margin:0 0 16px}
+.strip svg{width:100%;height:74px;display:block}
+
+/* ---------- form blocks ---------- */
+.block{
+  background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);padding:16px;margin-bottom:14px;
+}
+.block h2{font-size:17px;margin-bottom:3px}
+.block .hint{color:var(--ink-soft);font-size:13.5px;margin:0 0 14px}
+
+.scale{margin-bottom:16px}
+.scale:last-child{margin-bottom:4px}
+.scale-name{font-size:14.5px;font-weight:600;margin-bottom:7px;display:flex;justify-content:space-between;align-items:baseline}
+.scale-val{font-weight:500;color:var(--ink-soft);font-size:13.5px}
+.dots{display:flex;gap:6px}
+.dot{
+  flex:1;height:46px;border:1px solid var(--line);border-radius:9px;
+  background:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:var(--ink-soft);font-variant-numeric:tabular-nums;
+}
+.dot[aria-pressed="true"]{background:var(--pine);border-color:var(--pine);color:#fff;font-weight:600}
+.dots.warm .dot[aria-pressed="true"]{background:var(--amber);border-color:var(--amber)}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{
+  border:1px solid var(--line);border-radius:999px;
+  padding:9px 13px;font-size:14.5px;background:#fff;
+}
+.chip[aria-pressed="true"]{background:var(--pine-soft);border-color:var(--pine);color:var(--pine);font-weight:600}
+.chips.warm .chip[aria-pressed="true"]{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
+
+textarea,input[type=text],input[type=number],input[type=datetime-local],select{
+  width:100%;border:1px solid var(--line);border-radius:10px;
+  padding:11px 12px;background:#fff;
+}
+textarea{resize:vertical;min-height:66px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:14px;font-weight:600;margin-bottom:5px}
+.row2{display:flex;gap:10px}
+.row2 > *{flex:1}
+
+/* ---------- history ---------- */
+.day-head{
+  font-size:13.5px;color:var(--ink-soft);font-weight:600;
+  margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line);
+  display:flex;justify-content:space-between;
+}
+.entry{
+  background:var(--card);border:1px solid var(--line);border-left-width:4px;
+  border-radius:10px;padding:12px 13px;margin-bottom:8px;
+}
+.entry.dose{border-left-color:var(--pine);background:var(--pine-soft)}
+.entry.obs{border-left-color:var(--line)}
+.entry-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.entry-time{font-weight:700;font-variant-numeric:tabular-nums;font-size:15px}
+.entry-since{color:var(--ink-soft);font-size:13px;font-variant-numeric:tabular-nums}
+.entry-scores{display:flex;gap:14px;flex-wrap:wrap;margin-top:7px;font-size:14px}
+.entry-scores b{font-weight:700}
+.entry-tags{margin-top:8px;display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:12.5px;padding:3px 9px;border-radius:999px;background:var(--pine-soft);color:var(--pine)}
+.tag.warm{background:var(--amber-soft);color:var(--amber)}
+.entry-note{margin-top:8px;font-size:14.5px;color:var(--ink-soft)}
+.entry-tools{margin-top:9px;display:flex;gap:14px}
+.entry-tools button{font-size:13px;color:var(--ink-soft);text-decoration:underline;padding:2px 0}
+
+.empty{
+  text-align:center;color:var(--ink-soft);padding:44px 20px;font-size:15px;
+}
+
+/* ---------- charts ---------- */
+.chart-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.chart-card h2{font-size:16px;margin-bottom:3px}
+.chart-card .hint{color:var(--ink-soft);font-size:13.5px;margin:0 0 12px}
+.chart-card svg{width:100%;display:block}
+.legend{display:flex;gap:16px;font-size:13px;color:var(--ink-soft);margin-top:10px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.stat-grid{display:flex;gap:10px;flex-wrap:wrap}
+.stat{flex:1;min-width:96px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat .n{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .k{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+
+/* ---------- tab bar ---------- */
+.tabs{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:rgba(238,241,239,.94);
+  backdrop-filter:saturate(1.6) blur(12px);
+  -webkit-backdrop-filter:saturate(1.6) blur(12px);
+  border-top:1px solid var(--line);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);
+}
+.tab{flex:1;padding:11px 4px 12px;text-align:center;font-size:12px;color:var(--ink-soft)}
+.tab span{display:block;font-size:19px;line-height:1.25;margin-bottom:1px}
+.tab.on{color:var(--pine);font-weight:600}
+
+/* ---------- misc ---------- */
+.toast{
+  position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));
+  transform:translate(-50%,14px);
+  background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;
+  font-size:14.5px;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:40;
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.sheet-back{
+  position:fixed;inset:0;background:rgba(22,35,31,.42);z-index:50;
+  display:none;align-items:flex-end;
+}
+.sheet-back.on{display:flex}
+.sheet{
+  background:var(--card);width:100%;max-width:560px;margin:0 auto;
+  border-radius:18px 18px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));
+}
+.sheet h2{font-size:19px;margin-bottom:12px}
+.foot{font-size:13px;color:var(--ink-soft);padding:6px 2px 24px;line-height:1.5}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<!-- ============ LOG ============ -->
+<section class="pane on" id="pane-log">
+  <div class="clock">
+    <div class="clock-label" id="clockLabel">No dose logged yet</div>
+    <div class="clock-time stale" id="clockTime">—</div>
+    <div class="clock-sub" id="clockSub">Log a dose to start tracking the day.</div>
+    <div class="clock-actions">
+      <button class="btn" id="btnDose">Log dose</button>
+      <button class="btn ghost" id="btnDoseEarlier">Dose at another time</button>
+    </div>
+  </div>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="block">
+    <h2>How is it working right now?</h2>
+    <p class="hint">Tap a number on each. Nothing is required.</p>
+    <div id="scales"></div>
+  </div>
+
+  <div class="block">
+    <h2>What you notice</h2>
+    <p class="hint">ADHD symptoms showing up right now.</p>
+    <div class="chips" id="symptomChips"></div>
+  </div>
+
+  <div class="block">
+    <h2>Tolerating it</h2>
+    <p class="hint">Physical and emotional side effects.</p>
+    <div class="chips warm" id="sideChips"></div>
+    <div style="height:16px"></div>
+    <div class="scale">
+      <div class="scale-name">How much are side effects bothering you?<span class="scale-val" id="burdenVal">Not set</span></div>
+      <div class="dots warm" id="burdenDots"></div>
+    </div>
+  </div>
+
+  <div class="block">
+    <div class="field">
+      <label for="obsNote">Note</label>
+      <textarea id="obsNote" placeholder="Ate lunch late, meeting ran long, slept 5 hours…"></textarea>
+    </div>
+    <div class="field">
+      <label for="obsTime">Time of this observation</label>
+      <input type="datetime-local" id="obsTime">
+    </div>
+    <button class="btn wide" id="btnSaveObs">Save observation</button>
+  </div>
+
+  <p class="foot">Your log stays on this phone. Bring it to your prescriber — dose changes are their call.</p>
+</section>
+
+<!-- ============ HISTORY ============ -->
+<section class="pane" id="pane-history">
+  <h1 style="font-size:24px;margin:18px 0 4px">History</h1>
+  <p class="hint" style="color:var(--ink-soft);font-size:14px;margin:0 0 8px">Newest first. Times in brackets are hours since that day's dose.</p>
+  <div id="historyList"></div>
+</section>
+
+<!-- ============ PATTERNS ============ -->
+<section class="pane" id="pane-chart">
+  <h1 style="font-size:24px;margin:18px 0 12px">Patterns</h1>
+  <div class="stat-grid" id="statGrid"></div>
+  <div style="height:14px"></div>
+
+  <div class="chart-card">
+    <h2>Response by hours since dose</h2>
+    <p class="hint">Every observation you've logged, placed by how long after the dose it was.</p>
+    <div id="curveChart"></div>
+    <div class="legend">
+      <span><i style="background:#1f5f4b"></i>Focus (1–5)</span>
+      <span><i style="background:#b3651b"></i>Side effects (0–4)</span>
+      <span><i style="background:#8a9a94"></i>Average focus</span>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h2>Focus by day</h2>
+    <p class="hint">Average focus rating for each day you logged.</p>
+    <div id="dayChart"></div>
+  </div>
+</section>
+
+<!-- ============ DATA ============ -->
+<section class="pane" id="pane-data">
+  <h1 style="font-size:24px;margin:18px 0 12px">Setup &amp; data</h1>
+
+  <div class="block" id="installBlock" style="display:none">
+    <h2>Add to your home screen</h2>
+    <p class="hint">Opens full screen, with no browser bar, and works offline.</p>
+    <button class="btn wide" id="btnInstall">Install Med Log</button>
+  </div>
+
+  <div class="block">
+    <h2>Your medication</h2>
+    <p class="hint">Used to prefill the dose button.</p>
+    <div class="field">
+      <label for="setMed">Name</label>
+      <input type="text" id="setMed" placeholder="e.g. Methylphenidate IR">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="setDose">Dose</label>
+        <input type="number" id="setDose" inputmode="decimal" step="any" placeholder="10">
+      </div>
+      <div class="field">
+        <label for="setUnit">Unit</label>
+        <select id="setUnit">
+          <option>mg</option><option>mcg</option><option>ml</option><option>tablet</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn wide" id="btnSaveSettings">Save medication</button>
+  </div>
+
+  <div class="block">
+    <h2>Export</h2>
+    <p class="hint">CSV opens in any spreadsheet. JSON is a full backup you can restore here.</p>
+    <div class="row2" style="margin-bottom:10px">
+      <button class="btn ghost" id="btnCsv">Export CSV</button>
+      <button class="btn ghost" id="btnJson">Export JSON</button>
+    </div>
+    <button class="btn quiet wide" id="btnCopy">Copy log as text</button>
+  </div>
+
+  <div class="block">
+    <h2>Restore or clear</h2>
+    <p class="hint">Restoring merges a backup file into what's already here.</p>
+    <input type="file" id="fileIn" accept="application/json,.json" style="margin-bottom:12px">
+    <button class="btn danger wide" id="btnClear">Delete everything</button>
+  </div>
+
+  <p class="foot" id="storageNote"></p>
+</section>
+
+</div>
+
+<nav class="tabs">
+  <button class="tab on" data-pane="log"><span>✎</span>Log</button>
+  <button class="tab" data-pane="history"><span>☰</span>History</button>
+  <button class="tab" data-pane="chart"><span>◔</span>Patterns</button>
+  <button class="tab" data-pane="data"><span>⚙</span>Data</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<div class="sheet-back" id="sheetBack">
+  <div class="sheet">
+    <h2 id="sheetTitle">Log a dose</h2>
+    <div class="row2">
+      <div class="field">
+        <label for="dlgDose">Dose</label>
+        <input type="number" id="dlgDose" inputmode="decimal" step="any">
+      </div>
+      <div class="field">
+        <label for="dlgUnit">Unit</label>
+        <input type="text" id="dlgUnit">
+      </div>
+    </div>
+    <div class="field">
+      <label for="dlgTime">Time taken</label>
+      <input type="datetime-local" id="dlgTime">
+    </div>
+    <div class="field">
+      <label for="dlgNote">Note</label>
+      <input type="text" id="dlgNote" placeholder="With food, second dose…">
+    </div>
+    <div class="row2">
+      <button class="btn quiet" id="dlgCancel">Cancel</button>
+      <button class="btn" id="dlgSave">Save dose</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- storage ---------------- */
+var KEY = "med-log-v1";
+var memory = null;
+var canPersist = (function(){
+  try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); return true; }
+  catch(e){ return false; }
+})();
+
+var db = load();
+
+function load(){
+  var blank = { settings:{med:"", dose:"", unit:"mg"}, events:[] };
+  if(!canPersist) return memory || (memory = blank);
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(!raw) return blank;
+    var d = JSON.parse(raw);
+    d.settings = d.settings || blank.settings;
+    d.events = d.events || [];
+    return d;
+  }catch(e){ return blank; }
+}
+function save(){
+  if(!canPersist){ memory = db; return; }
+  try{ localStorage.setItem(KEY, JSON.stringify(db)); }
+  catch(e){ toast("Couldn't save — storage is full or blocked"); }
+}
+
+/* ---------------- definitions ---------------- */
+var SCALES = [
+  { key:"focus",  name:"Focus",  labels:["Scattered","Foggy","Okay","Clear","Locked in"] },
+  { key:"steady", name:"Steady", labels:["Agitated","Edgy","Neutral","Settled","Grounded"] },
+  { key:"energy", name:"Energy", labels:["Flat","Low","Okay","Up","Buzzing"] }
+];
+var BURDEN = ["None","Barely","Noticeable","Rough","Can't ignore"];
+var SYMPTOMS = ["Distracted","Can't get started","Hyperfocused","Restless","Forgetful",
+  "Impulsive","Overwhelmed","Lost track of time","Talking a lot","Emotional"];
+var SIDES = ["No appetite","Nausea","Headache","Heart racing","Jaw clenching","Dry mouth",
+  "Anxious","Irritable","Dizzy","Sweating","Tics","Crash"];
+
+/* draft state for the log form */
+var draft = { focus:null, steady:null, energy:null, burden:null, symptoms:[], sides:[] };
+
+/* ---------------- helpers ---------------- */
+function $(id){ return document.getElementById(id); }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function esc(s){
+  return String(s).replace(/[&<>"]/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];
+  });
+}
+function pad(n){ return n < 10 ? "0"+n : ""+n; }
+function toLocalInput(d){
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())+":"+pad(d.getMinutes());
+}
+function fromLocalInput(v){
+  if(!v) return null;
+  var m = v.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if(!m) return null;
+  return new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]);
+}
+function fmtTime(iso){
+  return new Date(iso).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+}
+function fmtDay(iso){
+  var d = new Date(iso), t = new Date();
+  var same = function(a,b){ return a.toDateString() === b.toDateString(); };
+  if(same(d,t)) return "Today";
+  var y = new Date(t.getTime() - 864e5);
+  if(same(d,y)) return "Yesterday";
+  return d.toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"});
+}
+function dayKey(iso){
+  var d = new Date(iso);
+  return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+}
+function hoursBetween(a,b){ return (new Date(b) - new Date(a)) / 36e5; }
+function fmtDur(hrs){
+  if(hrs < 0) return "—";
+  var h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
+  if(m === 60){ h++; m = 0; }
+  return h + ":" + pad(m);
+}
+var toastTimer;
+function toast(msg){
+  var t = $("toast");
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove("on"); }, 2000);
+}
+function sorted(){
+  return db.events.slice().sort(function(a,b){ return new Date(a.t) - new Date(b.t); });
+}
+function lastDoseBefore(iso){
+  var best = null, evs = sorted();
+  for(var i=0;i<evs.length;i++){
+    if(evs[i].type === "dose" && new Date(evs[i].t) <= new Date(iso)) best = evs[i];
+  }
+  return best;
+}
+
+/* ---------------- build the log form ---------------- */
+function buildScales(){
+  var host = $("scales");
+  host.innerHTML = "";
+  SCALES.forEach(function(sc){
+    var wrap = document.createElement("div");
+    wrap.className = "scale";
+    wrap.innerHTML = '<div class="scale-name">' + sc.name +
+      '<span class="scale-val" id="val-'+sc.key+'">Not set</span></div>' +
+      '<div class="dots" id="dots-'+sc.key+'"></div>';
+    host.appendChild(wrap);
+    var dots = wrap.querySelector(".dots");
+    for(var i=1;i<=5;i++){
+      dots.appendChild(makeDot(sc.key, i, sc.labels, "val-"+sc.key, false));
+    }
+  });
+
+  var bd = $("burdenDots");
+  bd.innerHTML = "";
+  for(var j=0;j<=4;j++){
+    bd.appendChild(makeDot("burden", j, BURDEN, "burdenVal", true, j));
+  }
+}
+function makeDot(key, value, labels, valId, zeroBased){
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = "dot";
+  b.textContent = value;
+  b.setAttribute("aria-pressed","false");
+  b.setAttribute("aria-label", labels[zeroBased ? value : value-1]);
+  b.addEventListener("click", function(){
+    var on = draft[key] === value;
+    draft[key] = on ? null : value;
+    var parent = b.parentNode.children;
+    for(var i=0;i<parent.length;i++) parent[i].setAttribute("aria-pressed","false");
+    if(!on) b.setAttribute("aria-pressed","true");
+    $(valId).textContent = on ? "Not set" : labels[zeroBased ? value : value-1];
+  });
+  return b;
+}
+function buildChips(hostId, list, key){
+  var host = $(hostId);
+  host.innerHTML = "";
+  list.forEach(function(name){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = name;
+    b.setAttribute("aria-pressed","false");
+    b.addEventListener("click", function(){
+      var i = draft[key].indexOf(name);
+      if(i >= 0){ draft[key].splice(i,1); b.setAttribute("aria-pressed","false"); }
+      else { draft[key].push(name); b.setAttribute("aria-pressed","true"); }
+    });
+    host.appendChild(b);
+  });
+}
+function resetForm(){
+  draft = { focus:null, steady:null, energy:null, burden:null, symptoms:[], sides:[] };
+  buildScales();
+  buildChips("symptomChips", SYMPTOMS, "symptoms");
+  buildChips("sideChips", SIDES, "sides");
+  $("obsNote").value = "";
+  $("obsTime").value = toLocalInput(new Date());
+}
+
+/* ---------------- dose clock + day strip ---------------- */
+function renderClock(){
+  var last = lastDoseBefore(new Date().toISOString());
+  var t = $("clockTime"), l = $("clockLabel"), s = $("clockSub");
+  if(!last){
+    l.textContent = "No dose logged yet";
+    t.textContent = "—";
+    t.classList.add("stale");
+    s.textContent = "Log a dose to start tracking the day.";
+    return;
+  }
+  var h = hoursBetween(last.t, new Date().toISOString());
+  var today = dayKey(last.t) === dayKey(new Date().toISOString());
+  t.textContent = fmtDur(h);
+  t.classList.toggle("stale", h > 16);
+  l.textContent = h > 16 ? "Since your last dose" : "Since today's dose";
+  var dose = last.dose ? (last.dose + " " + (last.unit||"")) : "";
+  var med = db.settings.med ? db.settings.med + " · " : "";
+  s.textContent = med + (dose ? dose + " · " : "") +
+    "taken " + fmtTime(last.t) + (today ? "" : " on " + fmtDay(last.t));
+}
+
+function renderStrip(){
+  var host = $("strip");
+  var today = dayKey(new Date().toISOString());
+  var evs = sorted().filter(function(e){ return dayKey(e.t) === today; });
+  if(!evs.length){ host.innerHTML = ""; return; }
+
+  var W = 560, H = 74, L = 8, R = 8, baseY = 48;
+  var startH = 5, endH = 24;
+  var x = function(iso){
+    var d = new Date(iso);
+    var hr = d.getHours() + d.getMinutes()/60;
+    hr = Math.max(startH, Math.min(endH, hr));
+    return L + (hr - startH) / (endH - startH) * (W - L - R);
+  };
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Today\'s doses and observations">';
+  svg += '<line x1="'+L+'" y1="'+baseY+'" x2="'+(W-R)+'" y2="'+baseY+'" stroke="#d3dad6" stroke-width="2"/>';
+  for(var hh = 6; hh <= 22; hh += 4){
+    var px = L + (hh - startH)/(endH - startH)*(W-L-R);
+    svg += '<line x1="'+px+'" y1="'+(baseY-4)+'" x2="'+px+'" y2="'+(baseY+4)+'" stroke="#b9c3be" stroke-width="2"/>';
+    var lbl = (hh % 12 === 0 ? 12 : hh % 12) + (hh < 12 ? "a" : "p");
+    svg += '<text x="'+px+'" y="'+(baseY+20)+'" font-size="11" fill="#5d6b66" text-anchor="middle">'+lbl+'</text>';
+  }
+  var nowX = x(new Date().toISOString());
+  svg += '<line x1="'+nowX+'" y1="14" x2="'+nowX+'" y2="'+(baseY+6)+'" stroke="#16231f" stroke-width="1.5" stroke-dasharray="3 3"/>';
+
+  evs.forEach(function(e){
+    var px = x(e.t);
+    if(e.type === "dose"){
+      svg += '<rect x="'+(px-3)+'" y="'+(baseY-22)+'" width="6" height="28" rx="3" fill="#1f5f4b"/>';
+    } else {
+      var f = e.focus || 3;
+      var r = 4 + f;
+      var op = 0.28 + f*0.14;
+      svg += '<circle cx="'+px+'" cy="'+(baseY-26)+'" r="'+r+'" fill="#1f5f4b" fill-opacity="'+op.toFixed(2)+'"/>';
+      if(e.burden >= 3){
+        svg += '<circle cx="'+px+'" cy="'+(baseY-26)+'" r="'+(r+3.5)+'" fill="none" stroke="#b3651b" stroke-width="2"/>';
+      }
+    }
+  });
+  svg += '</svg>';
+  host.innerHTML = svg;
+}
+
+/* ---------------- save actions ---------------- */
+function saveObservation(){
+  var when = fromLocalInput($("obsTime").value) || new Date();
+  var note = $("obsNote").value.trim();
+  var empty = draft.focus === null && draft.steady === null && draft.energy === null &&
+              draft.burden === null && !draft.symptoms.length && !draft.sides.length && !note;
+  if(empty){ toast("Nothing to save yet — tap a rating first"); return; }
+
+  db.events.push({
+    id: uid(), type:"obs", t: when.toISOString(),
+    focus: draft.focus, steady: draft.steady, energy: draft.energy,
+    burden: draft.burden,
+    symptoms: draft.symptoms.slice(), sides: draft.sides.slice(),
+    note: note
+  });
+  save();
+  resetForm();
+  renderAll();
+  window.scrollTo({top:0, behavior:"smooth"});
+  toast("Observation saved");
+}
+
+function openDoseSheet(preset){
+  $("dlgDose").value = db.settings.dose || "";
+  $("dlgUnit").value = db.settings.unit || "mg";
+  $("dlgTime").value = toLocalInput(preset || new Date());
+  $("dlgNote").value = "";
+  $("sheetBack").classList.add("on");
+}
+function closeDoseSheet(){ $("sheetBack").classList.remove("on"); }
+
+function saveDose(){
+  var when = fromLocalInput($("dlgTime").value) || new Date();
+  db.events.push({
+    id: uid(), type:"dose", t: when.toISOString(),
+    med: db.settings.med || "",
+    dose: $("dlgDose").value.trim(),
+    unit: $("dlgUnit").value.trim(),
+    note: $("dlgNote").value.trim()
+  });
+  save();
+  closeDoseSheet();
+  renderAll();
+  toast("Dose logged at " + fmtTime(when.toISOString()));
+}
+
+/* ---------------- history ---------------- */
+function renderHistory(){
+  var host = $("historyList");
+  var evs = sorted().reverse();
+  if(!evs.length){
+    host.innerHTML = '<p class="empty">No entries yet.<br>Log a dose, then check in every couple of hours.</p>';
+    return;
+  }
+  var html = "", currentDay = "";
+  evs.forEach(function(e){
+    var k = dayKey(e.t);
+    if(k !== currentDay){
+      currentDay = k;
+      var dayEvents = evs.filter(function(x){ return dayKey(x.t) === k && x.type === "obs"; });
+      html += '<div class="day-head"><span>'+esc(fmtDay(e.t))+'</span><span>'+
+              dayEvents.length+' check-in'+(dayEvents.length===1?"":"s")+'</span></div>';
+    }
+    html += entryHtml(e);
+  });
+  host.innerHTML = html;
+
+  Array.prototype.forEach.call(host.querySelectorAll("[data-del]"), function(b){
+    b.addEventListener("click", function(){
+      if(!confirm("Delete this entry?")) return;
+      db.events = db.events.filter(function(x){ return x.id !== b.getAttribute("data-del"); });
+      save(); renderAll(); toast("Entry deleted");
+    });
+  });
+}
+
+function entryHtml(e){
+  var dose = lastDoseBefore(e.t);
+  var since = (e.type === "obs" && dose && dayKey(dose.t) === dayKey(e.t))
+    ? "T+" + fmtDur(hoursBetween(dose.t, e.t)) : "";
+  var h = '<div class="entry '+e.type+'">';
+  h += '<div class="entry-top"><span class="entry-time">'+esc(fmtTime(e.t))+'</span>';
+  h += '<span class="entry-since">'+esc(since)+'</span></div>';
+
+  if(e.type === "dose"){
+    var d = [e.med, (e.dose ? e.dose+" "+(e.unit||"") : "")].filter(Boolean).join(" · ");
+    h += '<div class="entry-scores"><b>Dose taken</b>'+(d ? "<span>"+esc(d)+"</span>" : "")+'</div>';
+  } else {
+    var parts = [];
+    SCALES.forEach(function(sc){
+      if(e[sc.key]) parts.push(sc.name+" <b>"+e[sc.key]+"</b>");
+    });
+    if(e.burden !== null && e.burden !== undefined) parts.push("Side effects <b>"+e.burden+"</b>");
+    if(parts.length) h += '<div class="entry-scores"><span>'+parts.join("</span><span>")+'</span></div>';
+
+    var tags = "";
+    (e.symptoms||[]).forEach(function(s){ tags += '<span class="tag">'+esc(s)+'</span>'; });
+    (e.sides||[]).forEach(function(s){ tags += '<span class="tag warm">'+esc(s)+'</span>'; });
+    if(tags) h += '<div class="entry-tags">'+tags+'</div>';
+  }
+  if(e.note) h += '<div class="entry-note">'+esc(e.note)+'</div>';
+  h += '<div class="entry-tools"><button data-del="'+e.id+'">Delete</button></div>';
+  h += '</div>';
+  return h;
+}
+
+/* ---------------- patterns ---------------- */
+function pairs(){
+  var out = [], evs = sorted();
+  evs.forEach(function(e){
+    if(e.type !== "obs") return;
+    var d = lastDoseBefore(e.t);
+    if(!d) return;
+    var h = hoursBetween(d.t, e.t);
+    if(h < 0 || h > 14) return;
+    out.push({ h:h, focus:e.focus, burden:e.burden });
+  });
+  return out;
+}
+
+function renderStats(){
+  var evs = db.events;
+  var obs = evs.filter(function(e){ return e.type === "obs"; });
+  var doses = evs.filter(function(e){ return e.type === "dose"; });
+  var days = {};
+  evs.forEach(function(e){ days[dayKey(e.t)] = 1; });
+
+  var withFocus = obs.filter(function(e){ return e.focus; });
+  var avg = withFocus.length
+    ? (withFocus.reduce(function(a,e){ return a + e.focus; },0) / withFocus.length).toFixed(1)
+    : "—";
+
+  var p = pairs().filter(function(x){ return x.focus; });
+  var best = "—";
+  if(p.length >= 3){
+    var bins = {};
+    p.forEach(function(x){
+      var b = Math.floor(x.h);
+      bins[b] = bins[b] || [];
+      bins[b].push(x.focus);
+    });
+    var bk = null, bv = -1;
+    Object.keys(bins).forEach(function(k){
+      if(bins[k].length < 2) return;
+      var m = bins[k].reduce(function(a,c){ return a+c; },0)/bins[k].length;
+      if(m > bv){ bv = m; bk = k; }
+    });
+    if(bk !== null) best = "T+" + bk + "–" + (+bk+1) + "h";
+  }
+
+  $("statGrid").innerHTML =
+    stat(Object.keys(days).length, "days logged") +
+    stat(doses.length, "doses") +
+    stat(obs.length, "check-ins") +
+    stat(avg, "avg focus") +
+    stat(best, "best window");
+}
+function stat(n, k){
+  return '<div class="stat"><div class="n">'+esc(n)+'</div><div class="k">'+esc(k)+'</div></div>';
+}
+
+function renderCurve(){
+  var host = $("curveChart");
+  var p = pairs();
+  if(p.length < 2){
+    host.innerHTML = '<p class="empty" style="padding:26px 10px">Log a dose and a few check-ins through the day, and the curve appears here.</p>';
+    return;
+  }
+  var W = 560, H = 260, L = 34, R = 12, T = 12, B = 30;
+  var maxH = Math.max(6, Math.ceil(Math.max.apply(null, p.map(function(x){ return x.h; }))));
+  var px = function(h){ return L + h/maxH * (W-L-R); };
+  var py = function(v){ return T + (5-v)/4 * (H-T-B); };
+
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Focus and side effects by hours since dose">';
+  for(var v=1; v<=5; v++){
+    s += '<line x1="'+L+'" y1="'+py(v)+'" x2="'+(W-R)+'" y2="'+py(v)+'" stroke="#e2e7e4" stroke-width="1"/>';
+    s += '<text x="'+(L-8)+'" y="'+(py(v)+4)+'" font-size="11" fill="#5d6b66" text-anchor="end">'+v+'</text>';
+  }
+  for(var hh=0; hh<=maxH; hh++){
+    if(maxH > 8 && hh % 2) continue;
+    s += '<text x="'+px(hh)+'" y="'+(H-9)+'" font-size="11" fill="#5d6b66" text-anchor="middle">'+hh+'h</text>';
+  }
+
+  var bins = {};
+  p.forEach(function(x){
+    if(x.focus){
+      bins[Math.floor(x.h)] = bins[Math.floor(x.h)] || [];
+      bins[Math.floor(x.h)].push(x.focus);
+    }
+  });
+  var line = Object.keys(bins).map(Number).sort(function(a,b){ return a-b; })
+    .map(function(k){
+      var m = bins[k].reduce(function(a,c){ return a+c; },0)/bins[k].length;
+      return { x: px(k+0.5), y: py(m) };
+    });
+  if(line.length > 1){
+    s += '<polyline fill="none" stroke="#8a9a94" stroke-width="2.5" stroke-linejoin="round" points="' +
+         line.map(function(pt){ return pt.x.toFixed(1)+","+pt.y.toFixed(1); }).join(" ") + '"/>';
+  }
+
+  p.forEach(function(x){
+    if(x.focus) s += '<circle cx="'+px(x.h).toFixed(1)+'" cy="'+py(x.focus).toFixed(1)+'" r="5" fill="#1f5f4b" fill-opacity="0.75"/>';
+    if(x.burden !== null && x.burden !== undefined){
+      s += '<rect x="'+(px(x.h)-4).toFixed(1)+'" y="'+(py(x.burden+1)-4).toFixed(1)+'" width="8" height="8" rx="1.5" fill="#b3651b" fill-opacity="0.75"/>';
+    }
+  });
+  s += '</svg>';
+  host.innerHTML = s;
+}
+
+function renderDayChart(){
+  var host = $("dayChart");
+  var byDay = {};
+  db.events.forEach(function(e){
+    if(e.type !== "obs" || !e.focus) return;
+    var k = dayKey(e.t);
+    byDay[k] = byDay[k] || [];
+    byDay[k].push(e.focus);
+  });
+  var keys = Object.keys(byDay).sort().slice(-14);
+  if(!keys.length){
+    host.innerHTML = '<p class="empty" style="padding:26px 10px">No focus ratings yet.</p>';
+    return;
+  }
+  var W = 560, H = 180, L = 26, R = 10, T = 10, B = 34;
+  var bw = (W-L-R) / keys.length;
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Average focus by day">';
+  for(var v=1; v<=5; v+=2){
+    var y = T + (5-v)/4*(H-T-B);
+    s += '<line x1="'+L+'" y1="'+y+'" x2="'+(W-R)+'" y2="'+y+'" stroke="#e2e7e4"/>';
+    s += '<text x="'+(L-6)+'" y="'+(y+4)+'" font-size="11" fill="#5d6b66" text-anchor="end">'+v+'</text>';
+  }
+  keys.forEach(function(k,i){
+    var arr = byDay[k];
+    var m = arr.reduce(function(a,c){ return a+c; },0)/arr.length;
+    var h = (m-1)/4 * (H-T-B);
+    var x = L + i*bw + bw*0.18;
+    var w = bw*0.64;
+    s += '<rect x="'+x.toFixed(1)+'" y="'+(H-B-h).toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(2,h).toFixed(1)+'" rx="3" fill="#1f5f4b" fill-opacity="0.85"/>';
+    if(keys.length <= 10 || i % 2 === 0){
+      var d = new Date(k + "T12:00:00");
+      s += '<text x="'+(x+w/2).toFixed(1)+'" y="'+(H-12)+'" font-size="10.5" fill="#5d6b66" text-anchor="middle">'+
+           (d.getMonth()+1)+"/"+d.getDate()+'</text>';
+    }
+  });
+  s += '</svg>';
+  host.innerHTML = s;
+}
+
+/* ---------------- export ---------------- */
+function download(name, text, mime){
+  var blob = new Blob([text], {type: mime});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+}
+function csvCell(v){
+  v = (v === null || v === undefined) ? "" : String(v);
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+}
+function toCsv(){
+  var rows = [["date","time","type","hours_since_dose","med","dose","unit",
+    "focus_1_5","steady_1_5","energy_1_5","side_effect_burden_0_4","symptoms","side_effects","note"]];
+  sorted().forEach(function(e){
+    var d = new Date(e.t);
+    var dose = lastDoseBefore(e.t);
+    var since = (e.type === "obs" && dose) ? hoursBetween(dose.t, e.t).toFixed(2) : "";
+    rows.push([
+      d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()),
+      pad(d.getHours())+":"+pad(d.getMinutes()),
+      e.type === "dose" ? "dose" : "observation",
+      since,
+      e.med || (e.type==="obs" ? "" : db.settings.med),
+      e.dose || "", e.unit || "",
+      e.focus || "", e.steady || "", e.energy || "",
+      (e.burden === null || e.burden === undefined) ? "" : e.burden,
+      (e.symptoms||[]).join("; "), (e.sides||[]).join("; "),
+      e.note || ""
+    ]);
+  });
+  return rows.map(function(r){ return r.map(csvCell).join(","); }).join("\n");
+}
+function toText(){
+  var out = [], day = "";
+  sorted().reverse().forEach(function(e){
+    var k = dayKey(e.t);
+    if(k !== day){ day = k; out.push("\n" + fmtDay(e.t)); }
+    if(e.type === "dose"){
+      out.push("  " + fmtTime(e.t) + "  DOSE " + [e.med, e.dose, e.unit].filter(Boolean).join(" "));
+    } else {
+      var d = lastDoseBefore(e.t);
+      var since = d ? " (T+" + fmtDur(hoursBetween(d.t, e.t)) + ")" : "";
+      var bits = [];
+      SCALES.forEach(function(sc){ if(e[sc.key]) bits.push(sc.name.toLowerCase()+" "+e[sc.key]); });
+      if(e.burden !== null && e.burden !== undefined) bits.push("side effects "+e.burden);
+      var tags = (e.symptoms||[]).concat(e.sides||[]).join(", ");
+      out.push("  " + fmtTime(e.t) + since + "  " + bits.join(", ") +
+        (tags ? " — " + tags : "") + (e.note ? " — " + e.note : ""));
+    }
+  });
+  return out.join("\n").trim();
+}
+function stamp(){
+  var d = new Date();
+  return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
+}
+
+/* ---------------- tabs ---------------- */
+function showPane(name){
+  Array.prototype.forEach.call(document.querySelectorAll(".pane"), function(p){
+    p.classList.toggle("on", p.id === "pane-" + name);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(t){
+    t.classList.toggle("on", t.getAttribute("data-pane") === name);
+  });
+  window.scrollTo(0,0);
+}
+
+/* ---------------- render ---------------- */
+function renderAll(){
+  renderClock();
+  renderStrip();
+  renderHistory();
+  renderStats();
+  renderCurve();
+  renderDayChart();
+}
+
+/* ---------------- wiring ---------------- */
+Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(t){
+  t.addEventListener("click", function(){ showPane(t.getAttribute("data-pane")); });
+});
+
+$("btnDose").addEventListener("click", function(){
+  $("sheetTitle").textContent = "Log a dose";
+  openDoseSheet(new Date());
+});
+$("btnDoseEarlier").addEventListener("click", function(){
+  $("sheetTitle").textContent = "Log a dose you already took";
+  openDoseSheet(new Date());
+});
+$("dlgCancel").addEventListener("click", closeDoseSheet);
+$("dlgSave").addEventListener("click", saveDose);
+$("sheetBack").addEventListener("click", function(e){
+  if(e.target === $("sheetBack")) closeDoseSheet();
+});
+$("btnSaveObs").addEventListener("click", saveObservation);
+
+$("btnSaveSettings").addEventListener("click", function(){
+  db.settings.med = $("setMed").value.trim();
+  db.settings.dose = $("setDose").value.trim();
+  db.settings.unit = $("setUnit").value;
+  save(); renderClock(); toast("Medication saved");
+});
+$("btnCsv").addEventListener("click", function(){
+  if(!db.events.length){ toast("Nothing to export yet"); return; }
+  download("med-log-"+stamp()+".csv", toCsv(), "text/csv");
+});
+$("btnJson").addEventListener("click", function(){
+  download("med-log-backup-"+stamp()+".json", JSON.stringify(db, null, 2), "application/json");
+});
+$("btnCopy").addEventListener("click", function(){
+  var txt = toText();
+  if(!txt){ toast("Nothing to copy yet"); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(
+      function(){ toast("Log copied"); },
+      function(){ toast("Copy blocked — use Export CSV"); }
+    );
+  } else { toast("Copy not available — use Export CSV"); }
+});
+$("btnClear").addEventListener("click", function(){
+  if(!confirm("Delete every dose and observation? This can't be undone.")) return;
+  if(!confirm("Really delete? Export a backup first if you want to keep it.")) return;
+  db = { settings: db.settings, events: [] };
+  save(); resetForm(); renderAll(); toast("Everything deleted");
+});
+$("fileIn").addEventListener("change", function(){
+  var f = this.files && this.files[0];
+  if(!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var incoming = JSON.parse(r.result);
+      if(!incoming || !Array.isArray(incoming.events)) throw new Error("shape");
+      var have = {};
+      db.events.forEach(function(e){ have[e.id] = 1; });
+      var added = 0;
+      incoming.events.forEach(function(e){
+        if(e && e.id && e.t && !have[e.id]){ db.events.push(e); added++; }
+      });
+      if(incoming.settings && !db.settings.med) db.settings = incoming.settings;
+      save(); fillSettings(); renderAll();
+      toast(added + " entr" + (added === 1 ? "y" : "ies") + " restored");
+    }catch(err){
+      toast("That file isn't a Med Log backup");
+    }
+  };
+  r.readAsText(f);
+  this.value = "";
+});
+
+function fillSettings(){
+  $("setMed").value = db.settings.med || "";
+  $("setDose").value = db.settings.dose || "";
+  $("setUnit").value = db.settings.unit || "mg";
+  $("storageNote").textContent = canPersist
+    ? "Saved on this device only. Nothing is uploaded anywhere. Export a backup now and then — clearing your browser data erases the log."
+    : "Heads up: this browser is blocking storage, so entries will disappear when you close the page. Save the file to your phone and open it from there.";
+}
+
+/* ---------------- go ---------------- */
+resetForm();
+fillSettings();
+renderAll();
+setInterval(function(){
+  renderClock();
+  if($("pane-log").classList.contains("on")) renderStrip();
+}, 20000);
+document.addEventListener("visibilitychange", function(){
+  if(!document.hidden){ renderClock(); renderStrip(); }
+});
+
+/* ---------------- install to home screen ---------------- */
+var deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", function(e){
+  e.preventDefault();
+  deferredPrompt = e;
+  $("installBlock").style.display = "block";
+});
+$("btnInstall").addEventListener("click", function(){
+  if(!deferredPrompt){
+    toast("Use the browser menu → Add to Home screen");
+    return;
+  }
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(function(){
+    deferredPrompt = null;
+    $("installBlock").style.display = "none";
+  });
+});
+window.addEventListener("appinstalled", function(){
+  $("installBlock").style.display = "none";
+  toast("Installed");
+});
+
+if("serviceWorker" in navigator && location.protocol !== "file:"){
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  });
+}
+})();
+</script>
+</body>
+</html>

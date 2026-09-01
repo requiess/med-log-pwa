@@ -1,0 +1,16 @@
+{
+  "name": "Med Log — ADHD medication tracker",
+  "short_name": "Med Log",
+  "description": "Track how an ADHD medication is working, hour by hour after each dose.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef1ef",
+  "theme_color": "#1f5f4b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
