@@ -105,6 +105,24 @@ h1,h2,h3{margin:0;font-weight:640;letter-spacing:-0.015em}
 .chip[aria-pressed="true"]{background:var(--pine-soft);border-color:var(--pine);color:var(--pine);font-weight:600}
 .chips.warm .chip[aria-pressed="true"]{background:var(--amber-soft);border-color:var(--amber);color:var(--amber)}
 
+.hr-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.hr-input{flex:0 0 128px}
+.hr-ctx{flex:1;min-width:0}
+.hr-row label{display:block;font-size:14px;font-weight:600;margin-bottom:5px}
+.hr-box{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 12px 0 0}
+.hr-box input{
+  border:none;background:none;width:100%;padding:11px 4px 11px 12px;
+  font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;
+}
+.hr-box input:focus{outline:none}
+.hr-box:focus-within{border-color:var(--pine);box-shadow:0 0 0 1px var(--pine)}
+.hr-box span{color:var(--ink-soft);font-size:13.5px}
+.hr-flag{
+  margin:0 0 14px;padding:10px 12px;border-radius:9px;
+  background:var(--amber-soft);color:var(--amber);font-size:13.5px;line-height:1.4;
+}
+.hr-flag[hidden]{display:none}
+
 textarea,input[type=text],input[type=number],input[type=datetime-local],select{
   width:100%;border:1px solid var(--line);border-radius:10px;
   padding:11px 12px;background:#fff;
@@ -224,6 +242,22 @@ textarea{resize:vertical;min-height:66px}
   <div class="block">
     <h2>Tolerating it</h2>
     <p class="hint">Physical and emotional side effects.</p>
+
+    <div class="hr-row">
+      <div class="hr-input">
+        <label for="obsHr">Heart rate</label>
+        <div class="hr-box">
+          <input type="number" id="obsHr" inputmode="numeric" min="20" max="260" step="1" placeholder="—">
+          <span>bpm</span>
+        </div>
+      </div>
+      <div class="hr-ctx">
+        <label>Taken while</label>
+        <div class="chips" id="hrCtxChips"></div>
+      </div>
+    </div>
+    <p class="hr-flag" id="hrFlag" hidden></p>
+
     <div class="chips warm" id="sideChips"></div>
     <div style="height:16px"></div>
     <div class="scale">
@@ -269,6 +303,12 @@ textarea{resize:vertical;min-height:66px}
       <span><i style="background:#b3651b"></i>Side effects (0–4)</span>
       <span><i style="background:#8a9a94"></i>Average focus</span>
     </div>
+  </div>
+
+  <div class="chart-card" id="hrCard">
+    <h2>Heart rate by hours since dose</h2>
+    <p class="hint">Filled dots were taken sitting still; hollow ones after moving around.</p>
+    <div id="hrChart"></div>
   </div>
 
   <div class="chart-card">
@@ -412,9 +452,13 @@ var SYMPTOMS = ["Distracted","Can't get started","Hyperfocused","Restless","Forg
   "Impulsive","Overwhelmed","Lost track of time","Talking a lot","Emotional"];
 var SIDES = ["No appetite","Nausea","Headache","Heart racing","Jaw clenching","Dry mouth",
   "Anxious","Irritable","Dizzy","Sweating","Tics","Crash"];
+var HR_CTX = [
+  { key:"rest",   label:"Sitting still" },
+  { key:"active", label:"Just moved around" }
+];
 
 /* draft state for the log form */
-var draft = { focus:null, steady:null, energy:null, burden:null, symptoms:[], sides:[] };
+var draft = { focus:null, steady:null, energy:null, burden:null, symptoms:[], sides:[], hrCtx:null };
 
 /* ---------------- helpers ---------------- */
 function $(id){ return document.getElementById(id); }
@@ -532,11 +576,51 @@ function buildChips(hostId, list, key){
     host.appendChild(b);
   });
 }
+function buildHrCtx(){
+  var host = $("hrCtxChips");
+  host.innerHTML = "";
+  HR_CTX.forEach(function(o){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = o.label;
+    b.setAttribute("aria-pressed","false");
+    b.addEventListener("click", function(){
+      var on = draft.hrCtx === o.key;
+      draft.hrCtx = on ? null : o.key;
+      var sibs = host.children;
+      for(var i=0;i<sibs.length;i++) sibs[i].setAttribute("aria-pressed","false");
+      if(!on) b.setAttribute("aria-pressed","true");
+      checkHr();
+    });
+    host.appendChild(b);
+  });
+}
+
+function checkHr(){
+  var flag = $("hrFlag");
+  var v = parseInt($("obsHr").value, 10);
+  if(!v || isNaN(v)){ flag.hidden = true; return; }
+  var msg = "";
+  if(v >= 100 && draft.hrCtx !== "active"){
+    msg = "Over 100 sitting still. Worth writing down and telling your prescriber, especially if it keeps showing up.";
+  } else if(v >= 130){
+    msg = "That's a high reading. Note what you were doing, and mention it at your next appointment.";
+  } else if(v > 0 && v < 45){
+    msg = "That's unusually low. Double-check the reading.";
+  }
+  flag.textContent = msg;
+  flag.hidden = !msg;
+}
+
 function resetForm(){
-  draft = { focus:null, steady:null, energy:null, burden:null, symptoms:[], sides:[] };
+  draft = { focus:null, steady:null, energy:null, burden:null, symptoms:[], sides:[], hrCtx:null };
   buildScales();
   buildChips("symptomChips", SYMPTOMS, "symptoms");
   buildChips("sideChips", SIDES, "sides");
+  buildHrCtx();
+  $("obsHr").value = "";
+  $("hrFlag").hidden = true;
   $("obsNote").value = "";
   $("obsTime").value = toLocalInput(new Date());
 }
@@ -610,14 +694,17 @@ function renderStrip(){
 function saveObservation(){
   var when = fromLocalInput($("obsTime").value) || new Date();
   var note = $("obsNote").value.trim();
+  var hr = parseInt($("obsHr").value, 10);
+  if(isNaN(hr) || hr <= 0) hr = null;
   var empty = draft.focus === null && draft.steady === null && draft.energy === null &&
-              draft.burden === null && !draft.symptoms.length && !draft.sides.length && !note;
+              draft.burden === null && !draft.symptoms.length && !draft.sides.length &&
+              hr === null && !note;
   if(empty){ toast("Nothing to save yet — tap a rating first"); return; }
 
   db.events.push({
     id: uid(), type:"obs", t: when.toISOString(),
     focus: draft.focus, steady: draft.steady, energy: draft.energy,
-    burden: draft.burden,
+    burden: draft.burden, hr: hr, hrCtx: hr === null ? null : draft.hrCtx,
     symptoms: draft.symptoms.slice(), sides: draft.sides.slice(),
     note: note
   });
@@ -699,6 +786,10 @@ function entryHtml(e){
       if(e[sc.key]) parts.push(sc.name+" <b>"+e[sc.key]+"</b>");
     });
     if(e.burden !== null && e.burden !== undefined) parts.push("Side effects <b>"+e.burden+"</b>");
+    if(e.hr){
+      var ctx = e.hrCtx === "active" ? " after moving" : (e.hrCtx === "rest" ? " at rest" : "");
+      parts.push("<b>"+e.hr+"</b> bpm" + esc(ctx));
+    }
     if(parts.length) h += '<div class="entry-scores"><span>'+parts.join("</span><span>")+'</span></div>';
 
     var tags = "";
@@ -721,7 +812,7 @@ function pairs(){
     if(!d) return;
     var h = hoursBetween(d.t, e.t);
     if(h < 0 || h > 14) return;
-    out.push({ h:h, focus:e.focus, burden:e.burden });
+    out.push({ h:h, focus:e.focus, burden:e.burden, hr:e.hr, hrCtx:e.hrCtx });
   });
   return out;
 }
@@ -756,12 +847,20 @@ function renderStats(){
     if(bk !== null) best = "T+" + bk + "–" + (+bk+1) + "h";
   }
 
+  var hrs = obs.filter(function(e){ return e.hr && e.hrCtx !== "active"; }).map(function(e){ return e.hr; });
+  var hrCell = "";
+  if(hrs.length){
+    var hrAvg = Math.round(hrs.reduce(function(a,c){ return a+c; },0)/hrs.length);
+    hrCell = stat(hrAvg, "avg bpm at rest") + stat(Math.max.apply(null, hrs), "highest at rest");
+  }
+
   $("statGrid").innerHTML =
     stat(Object.keys(days).length, "days logged") +
     stat(doses.length, "doses") +
     stat(obs.length, "check-ins") +
     stat(avg, "avg focus") +
-    stat(best, "best window");
+    stat(best, "best window") +
+    hrCell;
 }
 function stat(n, k){
   return '<div class="stat"><div class="n">'+esc(n)+'</div><div class="k">'+esc(k)+'</div></div>';
@@ -810,6 +909,67 @@ function renderCurve(){
     if(x.focus) s += '<circle cx="'+px(x.h).toFixed(1)+'" cy="'+py(x.focus).toFixed(1)+'" r="5" fill="#1f5f4b" fill-opacity="0.75"/>';
     if(x.burden !== null && x.burden !== undefined){
       s += '<rect x="'+(px(x.h)-4).toFixed(1)+'" y="'+(py(x.burden+1)-4).toFixed(1)+'" width="8" height="8" rx="1.5" fill="#b3651b" fill-opacity="0.75"/>';
+    }
+  });
+  s += '</svg>';
+  host.innerHTML = s;
+}
+
+function renderHrChart(){
+  var host = $("hrChart");
+  var p = pairs().filter(function(x){ return x.hr; });
+  if(p.length < 2){
+    host.innerHTML = '<p class="empty" style="padding:26px 10px">Add a heart rate to a couple of check-ins and it plots here.</p>';
+    return;
+  }
+  var vals = p.map(function(x){ return x.hr; });
+  var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  lo = Math.min(55, Math.floor((lo-6)/10)*10);
+  hi = Math.max(110, Math.ceil((hi+6)/10)*10);
+
+  var W = 560, H = 230, L = 38, R = 12, T = 12, B = 30;
+  var maxH = Math.max(6, Math.ceil(Math.max.apply(null, p.map(function(x){ return x.h; }))));
+  var px = function(h){ return L + h/maxH * (W-L-R); };
+  var py = function(v){ return T + (hi-v)/(hi-lo) * (H-T-B); };
+
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Heart rate by hours since dose">';
+  var step = (hi-lo) > 80 ? 20 : 10;
+  for(var v = lo; v <= hi; v += step){
+    s += '<line x1="'+L+'" y1="'+py(v).toFixed(1)+'" x2="'+(W-R)+'" y2="'+py(v).toFixed(1)+'" stroke="#e2e7e4"/>';
+    s += '<text x="'+(L-7)+'" y="'+(py(v)+4).toFixed(1)+'" font-size="11" fill="#5d6b66" text-anchor="end">'+v+'</text>';
+  }
+  if(hi >= 100 && lo <= 100){
+    s += '<line x1="'+L+'" y1="'+py(100).toFixed(1)+'" x2="'+(W-R)+'" y2="'+py(100).toFixed(1)+
+         '" stroke="#b3651b" stroke-width="1.5" stroke-dasharray="5 4"/>';
+    s += '<text x="'+(W-R)+'" y="'+(py(100)-6).toFixed(1)+'" font-size="10.5" fill="#b3651b" text-anchor="end">100</text>';
+  }
+  for(var hh=0; hh<=maxH; hh++){
+    if(maxH > 8 && hh % 2) continue;
+    s += '<text x="'+px(hh).toFixed(1)+'" y="'+(H-9)+'" font-size="11" fill="#5d6b66" text-anchor="middle">'+hh+'h</text>';
+  }
+
+  var bins = {};
+  p.forEach(function(x){
+    if(x.hrCtx === "active") return;
+    var k = Math.floor(x.h);
+    bins[k] = bins[k] || [];
+    bins[k].push(x.hr);
+  });
+  var line = Object.keys(bins).map(Number).sort(function(a,b){ return a-b; })
+    .map(function(k){
+      var m = bins[k].reduce(function(a,c){ return a+c; },0)/bins[k].length;
+      return px(k+0.5).toFixed(1)+","+py(m).toFixed(1);
+    });
+  if(line.length > 1){
+    s += '<polyline fill="none" stroke="#8a9a94" stroke-width="2.5" stroke-linejoin="round" points="'+line.join(" ")+'"/>';
+  }
+  p.forEach(function(x){
+    var cx = px(x.h).toFixed(1), cy = py(x.hr).toFixed(1);
+    var col = x.hr >= 100 && x.hrCtx !== "active" ? "#b3651b" : "#1f5f4b";
+    if(x.hrCtx === "active"){
+      s += '<circle cx="'+cx+'" cy="'+cy+'" r="4.5" fill="none" stroke="'+col+'" stroke-width="2"/>';
+    } else {
+      s += '<circle cx="'+cx+'" cy="'+cy+'" r="5" fill="'+col+'" fill-opacity="0.8"/>';
     }
   });
   s += '</svg>';
@@ -871,7 +1031,8 @@ function csvCell(v){
 }
 function toCsv(){
   var rows = [["date","time","type","hours_since_dose","med","dose","unit",
-    "focus_1_5","steady_1_5","energy_1_5","side_effect_burden_0_4","symptoms","side_effects","note"]];
+    "focus_1_5","steady_1_5","energy_1_5","side_effect_burden_0_4",
+    "heart_rate_bpm","hr_taken_while","symptoms","side_effects","note"]];
   sorted().forEach(function(e){
     var d = new Date(e.t);
     var dose = lastDoseBefore(e.t);
@@ -885,6 +1046,8 @@ function toCsv(){
       e.dose || "", e.unit || "",
       e.focus || "", e.steady || "", e.energy || "",
       (e.burden === null || e.burden === undefined) ? "" : e.burden,
+      e.hr || "",
+      e.hr ? (e.hrCtx === "active" ? "after moving" : (e.hrCtx === "rest" ? "at rest" : "")) : "",
       (e.symptoms||[]).join("; "), (e.sides||[]).join("; "),
       e.note || ""
     ]);
@@ -904,6 +1067,7 @@ function toText(){
       var bits = [];
       SCALES.forEach(function(sc){ if(e[sc.key]) bits.push(sc.name.toLowerCase()+" "+e[sc.key]); });
       if(e.burden !== null && e.burden !== undefined) bits.push("side effects "+e.burden);
+      if(e.hr) bits.push(e.hr+" bpm"+(e.hrCtx === "active" ? " after moving" : (e.hrCtx === "rest" ? " at rest" : "")));
       var tags = (e.symptoms||[]).concat(e.sides||[]).join(", ");
       out.push("  " + fmtTime(e.t) + since + "  " + bits.join(", ") +
         (tags ? " — " + tags : "") + (e.note ? " — " + e.note : ""));
@@ -934,6 +1098,7 @@ function renderAll(){
   renderHistory();
   renderStats();
   renderCurve();
+  renderHrChart();
   renderDayChart();
 }
 
@@ -955,6 +1120,7 @@ $("dlgSave").addEventListener("click", saveDose);
 $("sheetBack").addEventListener("click", function(e){
   if(e.target === $("sheetBack")) closeDoseSheet();
 });
+$("obsHr").addEventListener("input", checkHr);
 $("btnSaveObs").addEventListener("click", saveObservation);
 
 $("btnSaveSettings").addEventListener("click", function(){
